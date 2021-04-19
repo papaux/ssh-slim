@@ -1,6 +1,6 @@
 # ssh-slim
 
-A minimal docker image for running SSH commands based on alpine distribution.
+A minimal docker image for running SSH commands based on alpine distribution. Perfect for integrating in a CI pipeline.
 
 The image is available in [docker hub](https://hub.docker.com/repository/docker/papaux/ssh-slim)
 
@@ -18,10 +18,25 @@ docker run --rm -ti -e SSH_PRIVATE_KEY="$(cat ~/.ssh/id_rsa)" papaux/ssh-slim ss
 
 ### Gitlab CI
 
-Example of a deploy stage in `.gitlab-ci.yml`:
+Example of a deploy stage in `.gitlab-ci.yml` using this image.
+
+The SSH private key is stored in the Gitlab project configuration
+as a secret with the name `${YOUR_GITLAB_SECRET_PRIVATE_KEY}`
 
 ```
-TODO
+deploy to staging:
+  stage: staging
+  image: papaux/ssh-slim
+  environment:
+    name: staging
+    url: https://staging.your-service.com
+  only:
+    - master
+  variables:
+    SSH_PRIVATE_KEY: ${YOUR_GITLAB_SECRET_PRIVATE_KEY}
+    GIT_STRATEGY: none
+  script:
+    - ssh dokku@staging.your-service.com git:from-image <your-app> <your-docker-image>
 ```
 
 ## Build
@@ -43,7 +58,7 @@ It will basically pick whatever "Docker Tag" is configured from the Build Rules.
 
 ![example-docker-hub-docker-tag](https://gist.githubusercontent.com/papaux/101c5efb2cc124ab594465572f43ac33/raw/31fb9105e45d983ff91113c8003e051a22e4620c/docker-hub-build-rules.png)
 
-Documentation about build hooks is really hard to find, especially what is the default build command.
+Documentation about build hooks is really hard to find, especially what is the default build command in the hook.
 
 These links can be useful to understand:
 - [What is a build hook](https://docs.docker.com/docker-hub/builds/advanced/#override-build-test-or-push-commands)

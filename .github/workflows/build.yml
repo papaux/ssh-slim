@@ -1,0 +1,81 @@
+name: Build and publish
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  schedule:
+    # Weekly rebuild to pick up upstream alpine and package updates
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_NAME: papaux/ssh-slim
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute tags from alpine version
+        id: version
+        run: |
+          alpine_version=$(sed -n 's/^FROM alpine:\([0-9.]*\).*/\1/p' Dockerfile)
+          if [ -z "$alpine_version" ]; then
+            echo "Could not find alpine version in Dockerfile" >&2
+            exit 1
+          fi
+          # Full patch version (e.g. 3.20.3) of the upstream image
+          docker pull "alpine:${alpine_version}"
+          alpine_release=$(docker run --rm "alpine:${alpine_version}" cat /etc/alpine-release)
+          echo "alpine_version=${alpine_version}" >> "$GITHUB_OUTPUT"
+          {
+            echo "tags<<EOF"
+            echo "${IMAGE_NAME}:${alpine_version}"
+            echo "${IMAGE_NAME}:${alpine_release}"
+            echo "${IMAGE_NAME}:latest"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          pull: true
+          no-cache: true
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.version.outputs.tags }}
+
+  # Merge Dependabot PRs once the image builds successfully
+  automerge:
+    needs: build
+    if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Merge pull request
+        run: gh pr merge "${{ github.event.pull_request.number }}" --squash --delete-branch
+
+      # Merges made with GITHUB_TOKEN do not trigger the push event,
+      # so start the publish run on master explicitly.
+      - name: Publish from master
+        run: gh workflow run build.yml --ref master

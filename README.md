@@ -42,26 +42,16 @@ deploy to staging:
 ## Build
 
 ```
-docker build -t ssh-slim --build-arg ALPINE_VERSION=3.13 .
+docker build -t ssh-slim .
 ```
 
 ## Limitations
 
 Currently the image only supports ssh keys without passphrase.
 
-## Docker Hub build hook
+## Versioning and CI
 
-Instead of providing one Dockerfile per version, this image relies on the configured docker tag
-to fetch the corresponding alpine image version.
+The image tag follows the alpine base image version set in the `Dockerfile` (`FROM alpine:<version>`).
+For example `FROM alpine:3.20` publishes `papaux/ssh-slim:3.20`, `papaux/ssh-slim:3.20.<patch>` and `papaux/ssh-slim:latest`.
 
-It will basically pick whatever "Docker Tag" is configured from the Build Rules. For instance:
-
-![example-docker-hub-docker-tag](https://gist.githubusercontent.com/papaux/101c5efb2cc124ab594465572f43ac33/raw/31fb9105e45d983ff91113c8003e051a22e4620c/docker-hub-build-rules.png)
-
-Documentation about build hooks is really hard to find, especially what is the default build command in the hook.
-
-These links can be useful to understand:
-- [What is a build hook](https://docs.docker.com/docker-hub/builds/advanced/#override-build-test-or-push-commands)
-- [Example of a build hook](https://github.com/SamueleA/docker-hub-auto-build-tutorial/blob/ec2743d606bf290f6707547c8c1439d20bdf2298/hooks/build#L1)
-- [Environment Variables](https://docs.docker.com/docker-hub/builds/advanced/#custom-build-phase-hooks)
-
+Dependabot is configured to update the image weekly based on Alpine releases.

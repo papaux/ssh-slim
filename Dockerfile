@@ -1,6 +1,5 @@
-ARG ALPINE_VERSION
-
-FROM alpine:${ALPINE_VERSION}
+# The alpine tag is tracked by Dependabot and drives the ssh-slim image tag.
+FROM alpine:3.20
 
 RUN apk add --no-cache \
   openssh-client \
